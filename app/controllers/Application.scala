@@ -2,12 +2,16 @@ package controllers
 
 import java.io._
 
+import akka.actor.Actor
+import akka.util.Timeout
 import org.apache.sshd.SshServer
 import org.apache.sshd.common._
 import org.apache.sshd.server.{Command, PasswordAuthenticator}
 import org.apache.sshd.server.keyprovider.SimpleGeneratorHostKeyProvider
 import org.apache.sshd.server.session.ServerSession
 import org.apache.sshd.server._
+import play.api.Logger
+import play.api.libs.concurrent.Akka
 import play.api.mvc._
 
 import scala.collection.mutable.ListBuffer
@@ -18,40 +22,53 @@ import jssc._
 object Application extends Controller {
 
   def index = Action {
-    val test = new ssh()
     Ok(views.html.index("Your new application is ready."))
   }
 
+//  def webSocket = WebSocket.using[String]{
+//    request =>
+//    def onStart: Channel[String] => Unit = {
+//      channel =>
+//
+//    }
+//  }
 }
 
-object sshCollection{
-  val list = ListBuffer.empty[SshServer]
-  def allStop() {
-    list.foreach(x => {
-      x.stop()
-    })
-    list.clear()
+class HelloActor extends Actor{
+  def receive = {
+    case s: String =>
+      sender ! Array(s"Hello, $s. ", "Bye Bye.")
+    case _ =>
+
   }
 }
 
 
-class ssh(){
+
+class sshd(){
   val server = SshServer.setUpDefaultServer()
   server.setPort(2222)
-  println(s"Listen: ${server.getPort}")
   server.setKeyPairProvider(new SimpleGeneratorHostKeyProvider("key.ser"))
   server.setPasswordAuthenticator(new PasswordAuthenticator {
     override def authenticate(p1: String, p2: String, p3: ServerSession): Boolean = {
+      Logger.info("auth start " + p1)
       true
     }
   })
   /*server.setPublickeyAuthenticator(new PublickeyAuthenticator {
     override def authenticate(p1: Nothing, p2: Nothing, p3: ServerSession): Boolean = ???
   });*/
-
   server.setShellFactory(new CommandFactory)
-  sshCollection.list += server
-  server.start();
+
+  def start = {
+    server.start
+  }
+  def stop = {
+    server.stop
+  }
+  def getPort : Integer = {
+    server.getPort
+  }
 }
 
 class CommandFactory extends Factory[Command] {
@@ -74,7 +91,8 @@ class CommandFactory extends Factory[Command] {
       def start(env: Environment): Unit = {
         println("Start!! " + env.toString)
         Future {
-          val serial = new SerialPort("/dev/ttyUSB0")
+//          val serial = new SerialPort("/dev/ttyUSB0")     //jamijin port
+          val serial = new SerialPort("/dev/tty.UC-232AC")  //tera port
           try {
             serial.openPort()
             serial.setParams(SerialPort.BAUDRATE_9600,
