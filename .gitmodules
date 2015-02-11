@@ -1,0 +1,6 @@
+[submodule "app/roomframework"]
+	path = app/roomframework
+	url = https://github.com/shunjikonishi/roomframework-play.git
+[submodule "public/library/roomframework"]
+	path = public/library/roomframework
+	url = git@github.com:shunjikonishi/roomframework.git

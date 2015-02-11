@@ -6,13 +6,15 @@ import akka.actor.Actor
 import akka.util.Timeout
 import org.apache.sshd.SshServer
 import org.apache.sshd.common._
-import org.apache.sshd.server.{Command, PasswordAuthenticator}
+import org.apache.sshd.server.{PasswordAuthenticator}
 import org.apache.sshd.server.keyprovider.SimpleGeneratorHostKeyProvider
 import org.apache.sshd.server.session.ServerSession
 import org.apache.sshd.server._
 import play.api.Logger
 import play.api.libs.concurrent.Akka
+import play.api.libs.json.JsNumber
 import play.api.mvc._
+import roomframework.command.{CommandResponse, CommandHandler, CommandInvoker}
 
 import scala.collection.mutable.ListBuffer
 import scala.concurrent.ExecutionContext.Implicits.global // TODO 検証
@@ -20,18 +22,28 @@ import scala.concurrent.Future
 import jssc._
 
 object Application extends Controller {
-
+  val ci:CommandInvoker = new CommandInvoker()
   def index = Action {
     Ok(views.html.index("Your new application is ready."))
   }
 
-//  def webSocket = WebSocket.using[String]{
-//    request =>
-//    def onStart: Channel[String] => Unit = {
-//      channel =>
-//
-//    }
-//  }
+  def webSocket = WebSocket.using[String] { _ =>
+    val ci = this.ci
+    ci.addHandler("hello"){ command =>
+      val msg = command.data.as[String]
+      command.text("Hello"+msg)
+    }
+    ci.addHandler("add", new AddCommand())
+    (ci.in, ci.out)
+  }
+}
+
+class AddCommand extends CommandHandler{
+  def handle(command: roomframework.command.Command): CommandResponse = {
+    val a:Integer = (command.data \ "a").as[Int]
+    val b:Integer = (command.data \ "b").as[Int]
+    command.json(JsNumber(a + b))
+  }
 }
 
 class HelloActor extends Actor{
