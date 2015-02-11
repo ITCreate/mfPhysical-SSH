@@ -77,7 +77,11 @@ class sshd(){
  * serialPort全体を管理するobject
  */
 object SshPortManager{
+  var serialList:Array[String] = null
 
+  def apply(serialList: Array[String]){
+    this.serialList = serialList
+  }
 }
 
 class CommandFactory extends Factory[Command] {
@@ -90,6 +94,7 @@ class CommandFactory extends Factory[Command] {
       var error: OutputStream = null
       var exitCallback: ExitCallback = null
       var endFlag = false
+      var select = true
       var lastKeyInput = 0
 
       def setInputStream(inputStream: InputStream) { in = inputStream }
@@ -114,6 +119,15 @@ class CommandFactory extends Factory[Command] {
             WebSocketCommand.portUpdate(serial, new SshUser("user1", "199.999.999.999"))
 
             // TODO シリアルポート選択ここでやりたい
+//            while(select){
+              "please select serial ports.\n\r".map(_.toByte.toInt).foreach(out.write)
+              for((serial, i) <- SshPortManager.serialList.zipWithIndex){
+                ("["+i+"]" + serial + "\n\r").map(_.toByte.toInt).foreach(out.write)
+              }
+              out.flush()
+//              Thread.sleep(10)
+//            }
+
 
             // main loop
             while (!endFlag) {
@@ -133,12 +147,14 @@ class CommandFactory extends Factory[Command] {
             }
             serial.closePort()
           } catch {
+
             // error
             case x: Exception => {
-              ("Error:" + x.getMessage).getBytes().map(_.toInt).foreach(out.write)
               out.flush()
+              ("Error:" + x.getMessage).getBytes().map(_.toInt).foreach(out.write)
               Thread.sleep(4000)
             }
+            serial.closePort()
           }
           in.close()
           out.close()

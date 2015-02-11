@@ -1,32 +1,27 @@
 
 
-import controllers.{Application, sshd}
+import com.typesafe.config.ConfigFactory
+import controllers.{SshPortManager, sshd}
 import jssc.SerialPortList
-import org.apache.sshd.SshServer
+import org.usb4java.{DeviceDescriptor, LibUsb, DeviceList}
 import play.api._
-import play.api.libs.json.{Json, JsValue}
-import play.libs.Akka
-import play.mvc.Controller
-import roomframework.command.{CommandResponse, CommandInvoker}
-import play.api.libs.concurrent.Execution.Implicits._
-
-import scala.collection.mutable.ListBuffer
-import scala.concurrent.ExecutionContext
-import scala.concurrent.duration.DurationLong
+import scala.collection.JavaConversions._
+import collection.JavaConversions._
 
 object Global extends GlobalSettings {
   val sshd = new sshd
+
   override def onStart(app: Application) {
     Logger.info("**Application has started")
-    Logger.info("Serial Port List:::::::::: port count : " +  SerialPortList.getPortNames.length)
-    for(port <- SerialPortList.getPortNames){
+    Logger.info("Serial Port List:::::::::: port count : " + SerialPortList.getPortNames.length)
+    for (port <- SerialPortList.getPortNames) {
       Logger.info(port)
     }
     Logger.info("::::::::::::::::::::::::::")
 
     Logger.info("sshd start.")
 
-    app.mode.toString match{
+    app.mode.toString match {
       case "Prod" => Logger.info("Prod mode.")
       case "Dev" => Logger.info("Dev mode.")
       case "Test" => Logger.info("test mode.")
@@ -36,12 +31,19 @@ object Global extends GlobalSettings {
     sshd.start
     Logger.info("sshd server Listen: " + sshd.getPort)
 
-//    Akka.system.scheduler.schedule(5 seconds, 5 seconds){
-      val ci = Application.ci       //ciを取得したらいつでもwebsocket送れるっぽい
-      val jsValue = Json.toJson(Map("status" -> 1))
-      ci.send(new CommandResponse("test", jsValue))
-//    }
+    //    Akka.system.scheduler.schedule(5 seconds, 5 seconds){
+    //      val ci = Application.ci       //ciを取得したらいつでもwebsocket送れるっぽい
+    //      val jsValue = Json.toJson(Map("status" -> 1))
+    //      ci.send(new CommandResponse("test", jsValue))
+    //    }
 
+    //コンフィグからserial port listを取得
+    val config = ConfigFactory.load()
+    val list:List[String] = config.getStringList("application.serial.list").map(_.toList).toList.map {
+      (s) =>
+        s.mkString
+    }
+    SshPortManager(list.toArray)
   }
 
   override def onStop(app: Application) {
