@@ -49,7 +49,7 @@ object Application extends Controller {
 
 class sshd(){
   val server = SshServer.setUpDefaultServer()
-  server.setPort(2222)
+  server.setPort(22220)
   server.setKeyPairProvider(new SimpleGeneratorHostKeyProvider("key.ser"))
   server.setPasswordAuthenticator(new PasswordAuthenticator {
     override def authenticate(p1: String, p2: String, p3: ServerSession): Boolean = {
