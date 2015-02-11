@@ -37,9 +37,9 @@ object Global extends GlobalSettings {
     Logger.info("sshd server Listen: " + sshd.getPort)
 
 //    Akka.system.scheduler.schedule(5 seconds, 5 seconds){
-//      val ci = Application.ci
-//      val jsValue = Json.toJson(Map("status" -> 1))
-//      ci.send(new CommandResponse("test", jsValue))
+      val ci = Application.ci       //ciを取得したらいつでもwebsocket送れるっぽい
+      val jsValue = Json.toJson(Map("status" -> 1))
+      ci.send(new CommandResponse("test", jsValue))
 //    }
 
   }

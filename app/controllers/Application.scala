@@ -15,6 +15,7 @@ import play.api.libs.concurrent.Akka
 import play.api.libs.json.JsNumber
 import play.api.mvc._
 import roomframework.command.{CommandResponse, CommandHandler, CommandInvoker}
+import utils.{SshUser, WebSocketCommand}
 
 import scala.collection.mutable.ListBuffer
 import scala.concurrent.ExecutionContext.Implicits.global // TODO 検証
@@ -33,29 +34,18 @@ object Application extends Controller {
       val msg = command.data.as[String]
       command.text("Hello"+msg)
     }
-    ci.addHandler("add", new AddCommand())
+//    ci.addHandler("add", new AddCommand())
     (ci.in, ci.out)
   }
 }
-
-class AddCommand extends CommandHandler{
-  def handle(command: roomframework.command.Command): CommandResponse = {
-    val a:Integer = (command.data \ "a").as[Int]
-    val b:Integer = (command.data \ "b").as[Int]
-    command.json(JsNumber(a + b))
-  }
-}
-
-class HelloActor extends Actor{
-  def receive = {
-    case s: String =>
-      sender ! Array(s"Hello, $s. ", "Bye Bye.")
-    case _ =>
-
-  }
-}
-
-
+//
+//class AddCommand extends CommandHandler{
+//  def handle(command: roomframework.command.Command): CommandResponse = {
+//    val a:Integer = (command.data \ "a").as[Int]
+//    val b:Integer = (command.data \ "b").as[Int]
+//    command.json(JsNumber(a + b))
+//  }
+//}
 
 class sshd(){
   val server = SshServer.setUpDefaultServer()
@@ -63,7 +53,7 @@ class sshd(){
   server.setKeyPairProvider(new SimpleGeneratorHostKeyProvider("key.ser"))
   server.setPasswordAuthenticator(new PasswordAuthenticator {
     override def authenticate(p1: String, p2: String, p3: ServerSession): Boolean = {
-      Logger.info("auth start " + p1)
+      Logger.info("auth start [user:" + p1 + "]")
       true
     }
   })
@@ -81,6 +71,13 @@ class sshd(){
   def getPort : Integer = {
     server.getPort
   }
+}
+
+/**
+ * serialPort全体を管理するobject
+ */
+object SshPortManager{
+
 }
 
 class CommandFactory extends Factory[Command] {
@@ -114,6 +111,7 @@ class CommandFactory extends Factory[Command] {
 
             "Welcome To Swans\n\rExit: Ctrl+A Ctrl+D Enter\n\r\n\r".getBytes().map(_.toInt).foreach(out.write)
             out.flush()
+            WebSocketCommand.portUpdate(serial, new SshUser("user1", "199.999.999.999"))
 
             // TODO シリアルポート選択ここでやりたい
 
