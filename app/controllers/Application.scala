@@ -2,25 +2,18 @@ package controllers
 
 import java.io._
 
-import akka.actor.Actor
-import akka.util.Timeout
+import jssc._
 import org.apache.sshd.SshServer
 import org.apache.sshd.common._
-import org.apache.sshd.server.{PasswordAuthenticator}
+import org.apache.sshd.server._
 import org.apache.sshd.server.keyprovider.SimpleGeneratorHostKeyProvider
 import org.apache.sshd.server.session.ServerSession
-import org.apache.sshd.server._
 import play.api.Logger
-import play.api.libs.concurrent.Akka
-import play.api.libs.json.JsNumber
 import play.api.mvc._
-import roomframework.command.{CommandResponse, CommandHandler, CommandInvoker}
+import roomframework.command.CommandInvoker
 import utils.{SshUser, WebSocketCommand}
-
-import scala.collection.mutable.ListBuffer
-import scala.concurrent.ExecutionContext.Implicits.global // TODO 検証
+import scala.concurrent.ExecutionContext.Implicits.global
 import scala.concurrent.Future
-import jssc._
 
 object Application extends Controller {
   val ci:CommandInvoker = new CommandInvoker()
@@ -77,15 +70,14 @@ class sshd(){
  * serialPort全体を管理するobject
  */
 object SshPortManager{
-  var serialList:Array[String] = null
+  val devList = new File("/dev/").listFiles.filter(_.toString.indexOf("USB") > 0).map(_.toString)
 
-  def apply(serialList: Array[String]){
-    this.serialList = serialList
-  }
 }
 
 class CommandFactory extends Factory[Command] {
-
+  implicit def StringToBytes(s: String): Array[Byte] = {
+    s.map(_.toByte).toArray[Byte]
+  }
   override def create():Command = {
     new Command() {
 
@@ -94,8 +86,9 @@ class CommandFactory extends Factory[Command] {
       var error: OutputStream = null
       var exitCallback: ExitCallback = null
       var endFlag = false
-      var select = true
+      var select = false
       var lastKeyInput = 0
+      var selectSerialDevice = 0
 
       def setInputStream(inputStream: InputStream) { in = inputStream }
       def setErrorStream(errorStream: OutputStream) { error = errorStream }
@@ -104,31 +97,47 @@ class CommandFactory extends Factory[Command] {
 
       def start(env: Environment): Unit = {
         println("Start!! " + env.toString)
+        var serial:SerialPort = null
         Future {
-//          val serial = new SerialPort("/dev/ttyUSB0")     //jamijin port
-          val serial = new SerialPort("/dev/tty.UC-232AC")  //tera port
           try {
+            out.write("Welcome To Physical - SSH\n\r")
+            out.flush()
+            // TODO シリアルポート選択ここでやりたい
+            SshPortManager.devList.foreach(println(_))
+
+            out.write("please select serial ports.\n\r")
+            for((serial, i) <- SshPortManager.devList.zipWithIndex){
+              ("["+i+"]" + serial + "\n\r").map(_.toByte.toInt).foreach(out.write)
+            }
+            out.write(":")
+            out.flush
+            while(!select) {
+              if (in.available() > 0) {
+                val read = in.read
+                if (read == 13) {
+                  selectSerialDevice = lastKeyInput - '0'
+                  if (SshPortManager.devList.length > selectSerialDevice && selectSerialDevice >= 0) {
+                    select = true
+                  } else {
+                    "\n\r:".map(_.toByte.toInt).foreach(out.write)
+                  }
+                } else {
+                  lastKeyInput = read
+                  out.write(read)
+                }
+                out.flush
+              }
+            }
+            serial = new SerialPort(SshPortManager.devList(selectSerialDevice))
+            WebSocketCommand.portUpdate(serial, new SshUser("user1", "199.999.999.999"))
             serial.openPort()
             serial.setParams(SerialPort.BAUDRATE_9600,
               SerialPort.DATABITS_8,
               SerialPort.STOPBITS_1,
               SerialPort.PARITY_NONE)
 
-            "Welcome To Swans\n\rExit: Ctrl+A Ctrl+D Enter\n\r\n\r".getBytes().map(_.toInt).foreach(out.write)
-            out.flush()
-            WebSocketCommand.portUpdate(serial, new SshUser("user1", "199.999.999.999"))
-
-            // TODO シリアルポート選択ここでやりたい
-//            while(select){
-              "please select serial ports.\n\r".map(_.toByte.toInt).foreach(out.write)
-              for((serial, i) <- SshPortManager.serialList.zipWithIndex){
-                ("["+i+"]" + serial + "\n\r").map(_.toByte.toInt).foreach(out.write)
-              }
-              out.flush()
-//              Thread.sleep(10)
-//            }
-
-
+            serial.writeByte("13".toByte) //選んだ時にmessageを流す
+            out.write("\n\r\n\rExit: Ctrl+A Ctrl+D Enter\n\r")
             // main loop
             while (!endFlag) {
               if(serial.getInputBufferBytesCount>0){

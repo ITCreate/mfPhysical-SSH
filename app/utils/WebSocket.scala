@@ -8,6 +8,8 @@ import roomframework.command.{CommandResponseType, CommandResponse}
 /**
  * Created by Takahiro Morimoto on 15/02/11.
  */
+
+
 class WebSocket {
 
 }

@@ -3,10 +3,9 @@
 import com.typesafe.config.ConfigFactory
 import controllers.{SshPortManager, sshd}
 import jssc.SerialPortList
-import org.usb4java.{DeviceDescriptor, LibUsb, DeviceList}
 import play.api._
+
 import scala.collection.JavaConversions._
-import collection.JavaConversions._
 
 object Global extends GlobalSettings {
   val sshd = new sshd
@@ -38,12 +37,7 @@ object Global extends GlobalSettings {
     //    }
 
     //コンフィグからserial port listを取得
-    val config = ConfigFactory.load()
-    val list:List[String] = config.getStringList("application.serial.list").map(_.toList).toList.map {
-      (s) =>
-        s.mkString
-    }
-    SshPortManager(list.toArray)
+
   }
 
   override def onStop(app: Application) {
