@@ -1,23 +1,19 @@
 
 
-import com.typesafe.config.ConfigFactory
-import controllers.{SshPortManager, sshd}
-import jssc.SerialPortList
+import controllers.sshd
 import play.api._
+import play.libs.Akka
+import utils.WebSocketCommand
 
-import scala.collection.JavaConversions._
+import scala.concurrent.duration.DurationInt
+import scala.concurrent.ExecutionContext.Implicits.global
+
 
 object Global extends GlobalSettings {
   val sshd = new sshd
 
   override def onStart(app: Application) {
     Logger.info("**Application has started")
-    Logger.info("Serial Port List:::::::::: port count : " + SerialPortList.getPortNames.length)
-    for (port <- SerialPortList.getPortNames) {
-      Logger.info(port)
-    }
-    Logger.info("::::::::::::::::::::::::::")
-
     Logger.info("sshd start.")
 
     app.mode.toString match {
@@ -30,13 +26,10 @@ object Global extends GlobalSettings {
     sshd.start
     Logger.info("sshd server Listen: " + sshd.getPort)
 
-    //    Akka.system.scheduler.schedule(5 seconds, 5 seconds){
-    //      val ci = Application.ci       //ciを取得したらいつでもwebsocket送れるっぽい
-    //      val jsValue = Json.toJson(Map("status" -> 1))
-    //      ci.send(new CommandResponse("test", jsValue))
-    //    }
+        Akka.system.scheduler.schedule(5 seconds, 10 seconds){
+          WebSocketCommand.portUpdate
+        }
 
-    //コンフィグからserial port listを取得
 
   }
 
