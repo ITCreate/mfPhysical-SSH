@@ -13,7 +13,7 @@ import play.api.mvc._
 import roomframework.command.CommandInvoker
 import utils.{SshUser, WebSocketCommand}
 import scala.concurrent.ExecutionContext.Implicits.global
-import scala.concurrent.Future
+import scala.concurrent.{blocking, Future}
 
 object Application extends Controller {
   val ci:CommandInvoker = new CommandInvoker()
@@ -102,74 +102,76 @@ class CommandFactory extends Factory[Command] {
         println("Start!! " + env.toString)
         var serial:SerialPort = null
         Future {
-          try {
-            out.write("Welcome To Physical - SSH\n\r")
-            out.flush()
-            // TODO シリアルポート選択ここでやりたい
-            SshPortManager.devList.foreach(println(_))
-
-            out.write("please select serial ports.\n\r")
-            for((serial, i) <- SshPortManager.devList.zipWithIndex){
-              ("["+i+"]" + serial + "\n\r").map(_.toByte.toInt).foreach(out.write)
-            }
-            out.write(":")
-            out.flush
-            while(!select) {
-              if (in.available() > 0) {
-                val read = in.read
-                if (read == 13) {
-                  selectSerialDevice = lastKeyInput - '0'
-                  if (SshPortManager.devList.length > selectSerialDevice && selectSerialDevice >= 0) {
-                    select = true
-                  } else {
-                    "\n\r:".map(_.toByte.toInt).foreach(out.write)
-                  }
-                } else {
-                  lastKeyInput = read
-                  out.write(read)
-                }
-                out.flush
-              }
-            }
-            serial = new SerialPort(SshPortManager.devList(selectSerialDevice))
-            WebSocketCommand.portUpdate(serial, new SshUser("user1", "199.999.999.999"))
-            serial.openPort()
-            serial.setParams(SerialPort.BAUDRATE_9600,
-              SerialPort.DATABITS_8,
-              SerialPort.STOPBITS_1,
-              SerialPort.PARITY_NONE)
-
-            serial.writeByte("13".toByte) //選んだ時にmessageを流す
-            out.write("\n\r\n\rExit: Ctrl+A Ctrl+D Enter\n\r")
-            // main loop
-            while (!endFlag) {
-              if(serial.getInputBufferBytesCount>0){
-                out.write(serial.readBytes())
-                out.flush()
-              }
-              if (in.available() > 0) {
-                var read = in.read()
-                println(read)
-                if(lastKeyInput == 1 && read == 4) // Ctrl+A Ctrl+D
-                  endFlag = true;
-                lastKeyInput = read
-                serial.writeByte(read.toByte)
-              }
-              Thread.sleep(10);
-            }
-            serial.closePort()
-          } catch {
-
-            // error
-            case x: Exception => {
+          blocking {
+            try {
+              out.write("Welcome To Physical - SSH\n\r")
               out.flush()
-              ("Error:" + x.getMessage).getBytes().map(_.toInt).foreach(out.write)
-              Thread.sleep(4000)
+              // TODO シリアルポート選択ここでやりたい
+              SshPortManager.devList.foreach(println(_))
+
+              out.write("please select serial ports.\n\r")
+              for ((serial, i) <- SshPortManager.devList.zipWithIndex) {
+                ("[" + i + "]" + serial + "\n\r").map(_.toByte.toInt).foreach(out.write)
+              }
+              out.write(":")
+              out.flush
+              while (!select) {
+                if (in.available() > 0) {
+                  val read = in.read
+                  if (read == 13) {
+                    selectSerialDevice = lastKeyInput - '0'
+                    if (SshPortManager.devList.length > selectSerialDevice && selectSerialDevice >= 0) {
+                      select = true
+                    } else {
+                      "\n\r:".map(_.toByte.toInt).foreach(out.write)
+                    }
+                  } else {
+                    lastKeyInput = read
+                    out.write(read)
+                  }
+                  out.flush
+                }
+              }
+              serial = new SerialPort(SshPortManager.devList(selectSerialDevice))
+              WebSocketCommand.portUpdate(serial, new SshUser("user1", "199.999.999.999"))
+              serial.openPort()
+              serial.setParams(SerialPort.BAUDRATE_9600,
+                SerialPort.DATABITS_8,
+                SerialPort.STOPBITS_1,
+                SerialPort.PARITY_NONE)
+
+              serial.writeByte("13".toByte) //選んだ時にmessageを流す
+              out.write("\n\r\n\rExit: Ctrl+A Ctrl+D Enter\n\r")
+              // main loop
+              while (!endFlag) {
+                if (serial.getInputBufferBytesCount > 0) {
+                  out.write(serial.readBytes())
+                  out.flush()
+                }
+                if (in.available() > 0) {
+                  var read = in.read()
+                  println(read)
+                  if (lastKeyInput == 1 && read == 4) // Ctrl+A Ctrl+D
+                    endFlag = true;
+                  lastKeyInput = read
+                  serial.writeByte(read.toByte)
+                }
+                Thread.sleep(10);
+              }
+              serial.closePort()
+            } catch {
+
+              // error
+              case x: Exception => {
+                out.flush()
+                ("Error:" + x.getMessage).getBytes().map(_.toInt).foreach(out.write)
+                Thread.sleep(4000)
+              }
+                serial.closePort()
             }
-            serial.closePort()
+            in.close()
+            out.close()
           }
-          in.close()
-          out.close()
         }
       }
       def destroy(): Unit = {
