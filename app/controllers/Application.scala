@@ -70,8 +70,11 @@ class sshd(){
  * serialPort全体を管理するobject
  */
 object SshPortManager{
-  val devList = new File("/dev/").listFiles.filter(_.toString.indexOf("USB") > 0).map(_.toString)
+  var devList = new File("/dev/").listFiles.filter(_.toString.indexOf("USB") > 0).map(_.toString).reverse
 
+  def update:Unit = {
+    devList = new File("/dev/").listFiles.filter(_.toString.indexOf("USB") > 0).map(_.toString).reverse
+  }
 }
 
 class CommandFactory extends Factory[Command] {
