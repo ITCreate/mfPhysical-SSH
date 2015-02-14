@@ -31,7 +31,6 @@ object Application extends Controller {
       val msg = command.data.as[String]
       command.text("Hello"+msg)
     }
-//    ci.addHandler("add", new AddCommand())
     (ci.in, ci.out)
   }
 }

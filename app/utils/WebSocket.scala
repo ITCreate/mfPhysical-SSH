@@ -34,7 +34,7 @@ object WebSocketCommand {
         (Map("id" -> id.toString, "name" -> devName, "use" -> SerialPortManager.isUse(id).toString))
       ))
     val jsonUser:JsValue = Json.toJson(for((user, usePort) <- SshUserManger.userMap) yield (
-        Map("user" -> user, "usePort" -> usePort.toString)
+        Map("name" -> user, "usePort" -> usePort.toString)
       ))
     val jsonRoot:JsValue = Json.toJson(Map("port" -> jsonPort, "user" -> jsonUser))
     ci.send(new CommandResponse("portUpdate", jsonRoot))
