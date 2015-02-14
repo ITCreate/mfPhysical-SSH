@@ -26,7 +26,7 @@ object Global extends GlobalSettings {
     sshd.start
     Logger.info("sshd server Listen: " + sshd.getPort)
 
-        Akka.system.scheduler.schedule(5 seconds, 10 seconds){
+        Akka.system.scheduler.schedule(5 seconds, 2 seconds){
           WebSocketCommand.portUpdate
         }
 
