@@ -214,6 +214,7 @@
             textClear: function(tableIndex){
                 var textArea = $('#text'+tableIndex);
                 textArea.text("");
+                baseTextTable[baseTextTable.indexOf(tableIndex)] = -1;
             },
             /**
              * port : {id: "", name: "/dev/????"}
@@ -237,7 +238,7 @@
             },
             updateSerialView: function(ports, users){
                 var self = this;
-                baseTextTable.filter(function(e, i, self){return self.indexOf(e) !== self.lastIndexOf(e)});
+                baseTextTable.filter(function(e, i, self){return self.indexOf(e) == self.lastIndexOf(e)});
                 var usePorts = ports.filter(function(e){return e.use == "true";});
                 usePorts.forEach(function(port, i){
                     if(baseTextTable.indexOf(port.id) == -1){
